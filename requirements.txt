@@ -1,0 +1,21 @@
+# RAG
+chromadb
+langchain
+numpy
+rank_bm25
+langchain-community
+langchain-openai
+tiktoken
+
+# MCP
+MCP
+
+# Web (optional: for SSE transport)
+fastapi
+uvicorn[standard]
+
+# Env
+python-dotenv
+
+# Dev
+pytest
