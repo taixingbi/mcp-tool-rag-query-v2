@@ -347,7 +347,7 @@ curl -s -X POST \
 
 <!-- Verify app is up before calling /mcp/. -->
 ```bash
-curl https://mcp-tool-rag-query-v2-prod.fly.dev/health
+curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 ```
 
 **`rag_query`** — returns only the RAG answer (plain text):
@@ -357,7 +357,7 @@ curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
-  https://mcp-tool-rag-query-v2-prod.fly.dev/mcp/
+  https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
 
 **`rag_query_with_chunks`** — answer plus ranked chunks as JSON:
@@ -367,5 +367,5 @@ curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
-  https://mcp-tool-rag-query-v2-prod.fly.dev/mcp/
+  https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
