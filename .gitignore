@@ -4,4 +4,4 @@
 __pycache__/
 .pytest_cache/
 tmp.md
-venv/
+venv/venv/
