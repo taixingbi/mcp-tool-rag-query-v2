@@ -42,7 +42,7 @@ python query.py "what is taixing visa"
 ### Run MCP HTTP Server
 
 ```bash
-uvicorn mcp_server:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 ### Test Endpoints
@@ -55,22 +55,13 @@ curl http://127.0.0.1:8000/health
 
 **Call MCP tools** (use trailing slash `/mcp/` to avoid 307 redirect):
 
-**`rag_query`** — returns only the RAG answer:
-
-```bash
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
-  http://localhost:8000/mcp/
-```
 
 **`rag_query_with_chunks`** — returns answer + ranked chunks as JSON:
 
 ```bash
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
   http://localhost:8000/mcp/
 ```
@@ -138,7 +129,7 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 ```bash
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
@@ -155,20 +146,12 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 
 **Call MCP tools:**
 
-```bash
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
-  https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
-```
-
 **`rag_query_with_chunks`** — answer plus ranked chunks as JSON:
 
 ```bash
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```

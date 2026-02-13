@@ -1,6 +1,0 @@
-#!/Users/hunter/Desktop/task/holly-eng-take-home-app-github-graph/mcp-tool-rag-query-v2/venv/bin/python3.11
-import sys
-from websocket._wsdump import main
-if __name__ == '__main__':
-    sys.argv[0] = sys.argv[0].removesuffix('.exe')
-    sys.exit(main())
