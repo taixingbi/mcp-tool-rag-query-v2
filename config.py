@@ -41,3 +41,15 @@ def get_settings() -> Settings:
     return Settings()
 
 settings = get_settings()
+
+def get_chroma_client():
+    if not (settings.chroma_api_key and settings.chroma_tenant and settings.chroma_database):
+        raise RuntimeError(
+            "Missing CHROMA_API_KEY / CHROMA_TENANT / CHROMA_DATABASE. Check .env."
+        )
+    import chromadb
+    return chromadb.CloudClient(
+        api_key=settings.chroma_api_key,
+        tenant=settings.chroma_tenant,
+        database=settings.chroma_database,
+    )

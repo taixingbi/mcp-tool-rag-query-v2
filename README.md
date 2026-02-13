@@ -1,6 +1,6 @@
 # RAG Pipeline
 
-RAG over documents using **Chroma Cloud** (dense search) and **LangChain**. Exposes one MCP tool via **MCP** (Model Context Protocol): `rag_query_with_chunks` (answer + ranked chunks over HTTP).
+RAG over documents using **Chroma Cloud** (dense search) and **LangChain**. Exposes tools via **MCP** (Model Context Protocol) so clients can call `rag_query` and `rag_query_with_chunks` over HTTP.
 
 ---
 
@@ -33,11 +33,16 @@ CHROMA_DATABASE=rag_dev
 
 <!-- All commands below assume you are in the repo root and have activated the venv. -->
 
+### Run RAG from CLI
+
+```bash
+python query.py "what is taixing visa"
+```
 
 ### Run MCP HTTP Server
 
 ```bash
-uvicorn main:app --reload --port 8000
+uvicorn mcp_server:app --reload --port 8000
 ```
 
 ### Test Endpoints
@@ -48,19 +53,29 @@ uvicorn main:app --reload --port 8000
 curl http://127.0.0.1:8000/health
 ```
 
-**Call MCP tool** (use trailing slash `/mcp/`; `Accept` must include both `application/json` and `text/event-stream`):
+**Call MCP tools** (use trailing slash `/mcp/` to avoid 307 redirect):
 
-**`rag_query_with_chunks`** — returns `{ "data": { "question", "answer" }, "metadata": { "reranked_chunks": [...] }, "error": null }`:
+**`rag_query`** — returns only the RAG answer:
 
 ```bash
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  http://localhost:8000/mcp/
+```
+
+**`rag_query_with_chunks`** — returns answer + ranked chunks as JSON:
+
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
   http://localhost:8000/mcp/
 ```
 
-Response is JSON-RPC; the tool result has `data.question`, `data.answer`, and `metadata.reranked_chunks` (each chunk: `rank`, `chunk_id`, `source`, `preview`, `text`, `scores`, `metadata`).
+Response is JSON-RPC; the tool result is a JSON string with: `answer`, `chunks` (each with `rank`, `chunk_id`, `source`, `preview`, `text`, `scores` (e.g. `bm25_raw`, `bm25_norm`, `dense_raw`, `dense_norm`, `distance`, `hybrid`), `metadata`), `used_chunk_ids` (unique chunk IDs used for the answer), `retrieval` (`k`, `alpha`, `filters`, `warnings`).
 
 ---
 
@@ -123,7 +138,37 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 ```bash
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
+```
+
+### Test Deployed Apps
+
+Replace `{env}` with `dev`, `qa`, or `prod`:
+
+**Health check:**
+
+```bash
+curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
+```
+
+**Call MCP tools:**
+
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
+```
+
+**`rag_query_with_chunks`** — answer plus ranked chunks as JSON:
+
+```bash
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```

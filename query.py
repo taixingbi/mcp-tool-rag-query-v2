@@ -8,21 +8,69 @@ import numpy as np
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from rank_bm25 import BM25Okapi
 
-from config import settings
-from chroma_client import get_chroma_collection
-from agent import run_query
+from config import settings, get_chroma_client
+
+
+# ----------------------------
+# LangSmith config
+# ----------------------------
+def _langsmith_config(metadata: Optional[Dict[str, Any]] = None) -> dict:
+    tags = []
+    if getattr(settings, "app_version", None):
+        tags.append(f"app_version:{settings.app_version}")
+    if getattr(settings, "mcp_name", None):
+        tags.append(f"mcp_name:{settings.mcp_name}")
+    out: Dict[str, Any] = {}
+    if tags:
+        out["tags"] = tags
+    if metadata:
+        out["metadata"] = metadata
+    return out
 
 
 # ----------------------------
 # Lazy singletons
 # ----------------------------
+_chroma_collection = None
 _embedder = None
+
+# IMPORTANT: chain must be cached per "where" key, not globally
+_rag_chain_cache: Dict[str, Any] = {}
+
+
+def _where_key(where: Optional[Dict[str, Any]]) -> str:
+    if not where:
+        return "__ALL__"
+    # stable-ish string key
+    try:
+        return str(sorted(where.items()))
+    except Exception:
+        return str(where)
+
+
+def _get_chroma_collection():
+    """
+    Chroma Cloud collection.
+    IMPORTANT: embedding_function=None means Chroma will NOT try to embed text for you.
+    We always pass query_embeddings / embeddings explicitly.
+    """
+    global _chroma_collection
+    if _chroma_collection is None:
+        client = get_chroma_client()
+        _chroma_collection = client.get_collection(
+            name=settings.chroma_collection,
+            embedding_function=None,
+        )
+    return _chroma_collection
 
 
 def _get_embedder() -> OpenAIEmbeddings:
@@ -45,7 +93,7 @@ def _search_dense(
       1) embed query using OpenAI embeddings
       2) query Chroma with query_embeddings
     """
-    coll = get_chroma_collection()
+    coll = _get_chroma_collection()
     q_emb = _get_embedder().embed_query(query)
 
     res = coll.query(
@@ -197,6 +245,52 @@ def format_docs(docs: List[Document]) -> str:
 
 
 # ----------------------------
+# Prompt + chain
+# ----------------------------
+RAG_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You answer questions based only on the provided context. "
+            "If the context does not contain relevant information, say so. "
+            "Do not make up facts. Cite the context when possible.",
+        ),
+        ("human", "Context:\n\n{context}\n\nQuestion: {question}\n\nAnswer:"),
+    ]
+)
+
+
+def build_rag_chain(where: Optional[Dict[str, Any]] = None):
+    """
+    Build RAG chain. Cached per-where (IMPORTANT for correctness if where changes).
+    """
+    key = _where_key(where)
+    if key not in _rag_chain_cache:
+        _rag_chain_cache[key] = (
+            {"context": get_retriever(where=where) | format_docs, "question": RunnablePassthrough()}
+            | RAG_PROMPT
+            | ChatOpenAI(
+                model=settings.openai_model,
+                temperature=0,
+                timeout=30,
+                max_retries=2,
+            )
+            | StrOutputParser()
+        )
+    return _rag_chain_cache[key]
+
+
+def run_query(
+    question: str,
+    where: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> str:
+    return build_rag_chain(where=where).invoke(
+        question, config=_langsmith_config(metadata=metadata)
+    )
+
+
+# ----------------------------
 # Return ranked chunks + answer
 # ----------------------------
 def retrieve_ranked_chunks(
@@ -247,8 +341,41 @@ def run_query_with_chunks(
         where=where,
         metadata={"reranked_chunks": chunks},
     )
-
+    used_k = min(settings.retrieval_k, len(chunks))
+    # Unique chunk_ids in rank order (dedupe duplicate rows for same chunk)
+    used_chunk_ids = list(dict.fromkeys(c["chunk_id"] for c in chunks[:used_k]))
+    warnings: List[str] = []
+    if chunks and all(c.get("scores", {}).get("bm25_raw", 0.0) == 0.0 for c in chunks):
+        warnings.append(
+            "bm25_raw is 0 for all results; hybrid score uses dense component only"
+        )
     return {
         "answer": answer,
+        "chunks": chunks,
+        "used_chunk_ids": used_chunk_ids,
+        "retrieval": {
+            "k": chunk_k,
+            "alpha": getattr(settings, "hybrid_alpha", 0.7),
+            "filters": where or {},
+            "warnings": warnings,
+        },
         "metadata": {"reranked_chunks": chunks},
     }
+
+
+if __name__ == "__main__":
+    import sys
+    import json
+
+    question = input("Question: ").strip() if len(sys.argv) < 2 else " ".join(sys.argv[1:])
+    if not question:
+        print("Usage: python query.py <question>")
+        sys.exit(1)
+
+    result = run_query_with_chunks(question)
+
+    print(f"Q: {question}\n")
+    print(f"A: {result['answer']}\n")
+
+    print("Top ranked chunks:\n")
+    print(json.dumps(result["chunks"][:settings.retrieval_k], indent=2, ensure_ascii=False))
