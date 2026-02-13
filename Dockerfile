@@ -26,4 +26,4 @@ EXPOSE 8000
 
 # ---- start MCP server ----
 # Require OPENAI_API_KEY and CHROMA_* via: docker run --env-file .env ...
-CMD ["uvicorn", "mcp_server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
