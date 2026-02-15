@@ -1,5 +1,6 @@
 # main.py — MCP HTTP server exposing RAG tools
 import contextlib
+
 from fastapi import FastAPI
 from mcp.server import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -18,9 +19,17 @@ mcp = FastMCP(
 )
 
 @mcp.tool()
-def rag_query_with_chunks(question: str):
-    """Answer plus top ranked chunks."""
-    result = run_query_with_chunks(question)
+def rag_query_with_chunks(
+    question: str,
+    request_id: int | str | None = None,
+    session_id: int | str | None = None,
+):
+    """Answer plus top ranked chunks. Optional request_id and session_id are sent as LangSmith tags."""
+    result = run_query_with_chunks(
+        question,
+        request_id=request_id,
+        session_id=session_id,
+    )
     return {
         "metadata": result["metadata"],
         "error": None,

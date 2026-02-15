@@ -23,12 +23,20 @@ from config import settings, get_chroma_client
 # ----------------------------
 # LangSmith config
 # ----------------------------
-def _langsmith_config(metadata: Optional[Dict[str, Any]] = None) -> dict:
+def _langsmith_config(
+    metadata: Optional[Dict[str, Any]] = None,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
+) -> dict:
     tags = []
     if getattr(settings, "app_version", None):
         tags.append(f"app_version:{settings.app_version}")
     if getattr(settings, "mcp_name", None):
         tags.append(f"mcp_name:{settings.mcp_name}")
+    if request_id is not None:
+        tags.append(f"request_id:{request_id}")
+    if session_id is not None:
+        tags.append(f"session_id:{session_id}")
     out: Dict[str, Any] = {}
     if tags:
         out["tags"] = tags
@@ -284,9 +292,16 @@ def run_query(
     question: str,
     where: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
 ) -> str:
     return build_rag_chain(where=where).invoke(
-        question, config=_langsmith_config(metadata=metadata)
+        question,
+        config=_langsmith_config(
+            metadata=metadata,
+            request_id=request_id,
+            session_id=session_id,
+        ),
     )
 
 
@@ -334,12 +349,16 @@ def run_query_with_chunks(
     question: str,
     where: Optional[Dict[str, Any]] = None,
     chunk_k: int = settings.retrieval_k * 2,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
 ) -> Dict[str, Any]:
     chunks = retrieve_ranked_chunks(question, k=chunk_k, where=where)
     answer = run_query(
         question,
         where=where,
         metadata={"reranked_chunks": chunks},
+        request_id=request_id,
+        session_id=session_id,
     )
     used_k = min(settings.retrieval_k, len(chunks))
     # Unique chunk_ids in rank order (dedupe duplicate rows for same chunk)

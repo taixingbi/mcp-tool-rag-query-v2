@@ -11,23 +11,6 @@ from langchain_openai import ChatOpenAI
 from config import settings
 
 # ----------------------------
-# LangSmith config
-# ----------------------------
-def _langsmith_config(metadata: Optional[Dict[str, Any]] = None) -> dict:
-    tags = []
-    if getattr(settings, "app_version", None):
-        tags.append(f"app_version:{settings.app_version}")
-    if getattr(settings, "mcp_name", None):
-        tags.append(f"mcp_name:{settings.mcp_name}")
-    out: Dict[str, Any] = {}
-    if tags:
-        out["tags"] = tags
-    if metadata:
-        out["metadata"] = metadata
-    return out
-
-
-# ----------------------------
 # Chain cache + where key
 # ----------------------------
 _rag_chain_cache: Dict[str, Any] = {}
@@ -84,7 +67,19 @@ def run_query(
     question: str,
     where: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
 ) -> str:
-    return build_rag_chain(where=where).invoke(
-        question, config=_langsmith_config(metadata=metadata)
-    )
+    tags = []
+    if getattr(settings, "app_version", None):
+        tags.append(f"app_version:{settings.app_version}")
+    if getattr(settings, "mcp_name", None):
+        tags.append(f"mcp_name:{settings.mcp_name}")
+    if request_id is not None:
+        tags.append(f"request_id:{request_id}")
+    if session_id is not None:
+        tags.append(f"session_id:{session_id}")
+    config = {"run_name": settings.mcp_name, "tags": tags}
+    if metadata:
+        config["metadata"] = metadata
+    return build_rag_chain(where=where).invoke(question, config=config)
