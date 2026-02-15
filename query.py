@@ -1,13 +1,8 @@
 # query.py
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import re
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-
-from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parent / ".env")
-
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -37,9 +32,7 @@ def _langsmith_config(
         tags.append(f"request_id:{request_id}")
     if session_id is not None:
         tags.append(f"session_id:{session_id}")
-    out: Dict[str, Any] = {}
-    if tags:
-        out["tags"] = tags
+    out: Dict[str, Any] = {"tags": tags}
     if metadata:
         out["metadata"] = metadata
     return out
@@ -295,13 +288,17 @@ def run_query(
     request_id: Optional[Any] = None,
     session_id: Optional[Any] = None,
 ) -> str:
-    return build_rag_chain(where=where).invoke(
-        question,
-        config=_langsmith_config(
-            metadata=metadata,
-            request_id=request_id,
-            session_id=session_id,
-        ),
+    return (
+        build_rag_chain(where=where)
+        .with_config(run_name=settings.mcp_name)
+        .invoke(
+            question,
+            config=_langsmith_config(
+                metadata=metadata,
+                request_id=request_id,
+                session_id=session_id,
+            ),
+        )
     )
 
 

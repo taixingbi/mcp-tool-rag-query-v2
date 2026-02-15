@@ -36,11 +36,13 @@ class Settings(BaseSettings):
     hybrid_candidates: int = Field(default=200, alias="HYBRID_CANDIDATES")
     hybrid_alpha: float = Field(default=0.7, alias="HYBRID_ALPHA")
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 
 settings = get_settings()
+
 
 def get_chroma_client():
     if not (settings.chroma_api_key and settings.chroma_tenant and settings.chroma_database):

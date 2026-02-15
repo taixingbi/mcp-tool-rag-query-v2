@@ -134,10 +134,22 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 > **Tip:** If `grep`/`cut` corrupts keys (e.g., 401 errors), paste the key directly: `fly secrets set -a mcp-tool-rag-query-v2-dev OPENAI_API_KEY="sk-proj-YOUR_KEY"`
 
 ```bash
-curl -s -X POST \
+  curl -s --max-time 60 -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":"call-001","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?","request_id":"12345678","session_id":"123456"}}}' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "call-001",
+    "method": "tools/call",
+    "params": {
+      "name": "rag_query_with_chunks",
+      "arguments": {
+        "question": "what is Taixing expected compensation?",
+        "request_id": "12345678",
+        "session_id": "123456"
+      }
+    }
+  }' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
 
