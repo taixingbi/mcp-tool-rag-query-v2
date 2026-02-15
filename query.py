@@ -267,7 +267,7 @@ def build_rag_chain(where: Optional[Dict[str, Any]] = None):
     """
     key = _where_key(where)
     if key not in _rag_chain_cache:
-        _rag_chain_cache[key] = (
+        chain = (
             {"context": get_retriever(where=where) | format_docs, "question": RunnablePassthrough()}
             | RAG_PROMPT
             | ChatOpenAI(
@@ -278,6 +278,7 @@ def build_rag_chain(where: Optional[Dict[str, Any]] = None):
             )
             | StrOutputParser()
         )
+        _rag_chain_cache[key] = chain.with_config(run_name=settings.mcp_name)
     return _rag_chain_cache[key]
 
 
@@ -288,17 +289,13 @@ def run_query(
     request_id: Optional[Any] = None,
     session_id: Optional[Any] = None,
 ) -> str:
-    return (
-        build_rag_chain(where=where)
-        .with_config(run_name=settings.mcp_name)
-        .invoke(
-            question,
-            config=_langsmith_config(
-                metadata=metadata,
-                request_id=request_id,
-                session_id=session_id,
-            ),
-        )
+    return build_rag_chain(where=where).invoke(
+        question,
+        config=_langsmith_config(
+            metadata=metadata,
+            request_id=request_id,
+            session_id=session_id,
+        ),
     )
 
 
