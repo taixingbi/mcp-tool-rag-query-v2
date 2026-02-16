@@ -32,15 +32,17 @@ class Settings(BaseSettings):
     chroma_api_key: str | None = Field(default=None, alias="CHROMA_API_KEY")
     chroma_tenant: str | None = Field(default=None, alias="CHROMA_TENANT")
     chroma_database: str | None = Field(default=None, alias="CHROMA_DATABASE")
-    chroma_collection: str = Field(default="tb_all", alias="CHROMA_COLLECTION")
+    chroma_collection: str = Field(default="taixing_identity", alias="CHROMA_COLLECTION")
     hybrid_candidates: int = Field(default=200, alias="HYBRID_CANDIDATES")
     hybrid_alpha: float = Field(default=0.7, alias="HYBRID_ALPHA")
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 
 settings = get_settings()
+
 
 def get_chroma_client():
     if not (settings.chroma_api_key and settings.chroma_tenant and settings.chroma_database):

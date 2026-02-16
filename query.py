@@ -1,13 +1,8 @@
 # query.py
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import re
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-
-from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parent / ".env")
-
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -23,15 +18,21 @@ from config import settings, get_chroma_client
 # ----------------------------
 # LangSmith config
 # ----------------------------
-def _langsmith_config(metadata: Optional[Dict[str, Any]] = None) -> dict:
+def _langsmith_config(
+    metadata: Optional[Dict[str, Any]] = None,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
+) -> dict:
     tags = []
     if getattr(settings, "app_version", None):
         tags.append(f"app_version:{settings.app_version}")
     if getattr(settings, "mcp_name", None):
         tags.append(f"mcp_name:{settings.mcp_name}")
-    out: Dict[str, Any] = {}
-    if tags:
-        out["tags"] = tags
+    if request_id is not None:
+        tags.append(f"request_id:{request_id}")
+    if session_id is not None:
+        tags.append(f"session_id:{session_id}")
+    out: Dict[str, Any] = {"tags": tags}
     if metadata:
         out["metadata"] = metadata
     return out
@@ -266,7 +267,7 @@ def build_rag_chain(where: Optional[Dict[str, Any]] = None):
     """
     key = _where_key(where)
     if key not in _rag_chain_cache:
-        _rag_chain_cache[key] = (
+        chain = (
             {"context": get_retriever(where=where) | format_docs, "question": RunnablePassthrough()}
             | RAG_PROMPT
             | ChatOpenAI(
@@ -277,6 +278,7 @@ def build_rag_chain(where: Optional[Dict[str, Any]] = None):
             )
             | StrOutputParser()
         )
+        _rag_chain_cache[key] = chain.with_config(run_name=settings.mcp_name)
     return _rag_chain_cache[key]
 
 
@@ -284,9 +286,16 @@ def run_query(
     question: str,
     where: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
 ) -> str:
     return build_rag_chain(where=where).invoke(
-        question, config=_langsmith_config(metadata=metadata)
+        question,
+        config=_langsmith_config(
+            metadata=metadata,
+            request_id=request_id,
+            session_id=session_id,
+        ),
     )
 
 
@@ -334,12 +343,16 @@ def run_query_with_chunks(
     question: str,
     where: Optional[Dict[str, Any]] = None,
     chunk_k: int = settings.retrieval_k * 2,
+    request_id: Optional[Any] = None,
+    session_id: Optional[Any] = None,
 ) -> Dict[str, Any]:
     chunks = retrieve_ranked_chunks(question, k=chunk_k, where=where)
     answer = run_query(
         question,
         where=where,
         metadata={"reranked_chunks": chunks},
+        request_id=request_id,
+        session_id=session_id,
     )
     used_k = min(settings.retrieval_k, len(chunks))
     # Unique chunk_ids in rank order (dedupe duplicate rows for same chunk)

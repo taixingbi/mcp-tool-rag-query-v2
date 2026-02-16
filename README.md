@@ -33,12 +33,6 @@ CHROMA_DATABASE=rag_dev
 
 <!-- All commands below assume you are in the repo root and have activated the venv. -->
 
-### Run RAG from CLI
-
-```bash
-python query.py "what is taixing visa"
-```
-
 ### Run MCP HTTP Server
 
 ```bash
@@ -59,11 +53,24 @@ curl http://127.0.0.1:8000/health
 **`rag_query_with_chunks`** — returns answer + ranked chunks as JSON:
 
 ```bash
-curl -s -X POST \
+curl -s --max-time 60 -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "call-001",
+    "method": "tools/call",
+    "params": {
+      "name": "rag_query_with_chunks",
+      "arguments": {
+        "question": "what is Taixing visa?",
+        "request_id": "12345678",
+        "session_id": "123456"
+      }
+    }
+  }' \
   http://localhost:8000/mcp/
+
 ```
 
 Response is JSON-RPC; the tool result is a JSON string with: `answer`, `chunks` (each with `rank`, `chunk_id`, `source`, `preview`, `text`, `scores` (e.g. `bm25_raw`, `bm25_norm`, `dense_raw`, `dense_norm`, `distance`, `hybrid`), `metadata`), `used_chunk_ids` (unique chunk IDs used for the answer), `retrieval` (`k`, `alpha`, `filters`, `warnings`).
@@ -127,10 +134,22 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 > **Tip:** If `grep`/`cut` corrupts keys (e.g., 401 errors), paste the key directly: `fly secrets set -a mcp-tool-rag-query-v2-dev OPENAI_API_KEY="sk-proj-YOUR_KEY"`
 
 ```bash
-curl -s -X POST \
+  curl -s --max-time 60 -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "call-001",
+    "method": "tools/call",
+    "params": {
+      "name": "rag_query_with_chunks",
+      "arguments": {
+        "question": "what is Taixing expected compensation?",
+        "request_id": "12345678",
+        "session_id": "123456"
+      }
+    }
+  }' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
 
@@ -152,6 +171,6 @@ curl https://mcp-tool-rag-query-v2-dev.fly.dev/health
 curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?"}},"id":1}' \
+  -d '{"jsonrpc":"2.0","id":"call-001","method":"tools/call","params":{"name":"rag_query_with_chunks","arguments":{"question":"what is Taixing visa?","request_id":"12345678","session_id":"123456"}}}' \
   https://mcp-tool-rag-query-v2-dev.fly.dev/mcp/
 ```
