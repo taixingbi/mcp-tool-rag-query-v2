@@ -25,6 +25,7 @@ The service is designed so a client (orchestrator / frontend) can call it via JS
 flowchart LR
   Client[Client: Orchestrator / Frontend] -->|JSON-RPC tools/call| API[FastAPI App]
   API -->|mounted /mcp| MCP[FastMCP Streamable HTTP App]
+
   MCP --> Tool[Tool: rag_query_with_chunks]
   Tool --> RAG[LangChain RAG Chain]
 
