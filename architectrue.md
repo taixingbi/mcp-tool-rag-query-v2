@@ -19,6 +19,27 @@ The service is designed so a client (orchestrator / frontend) can call it via JS
 
 ---
 
+## 2. High-Level Component Diagram
+
+```mermaid
+flowchart LR
+  Client[Client: Orchestrator / Frontend] -->|JSON-RPC tools/call| API[FastAPI App]
+  API -->|mounted /mcp| MCP[FastMCP Streamable HTTP App]
+
+  MCP --> Tool[Tool: rag_query_with_chunks]
+  Tool --> RAG[LangChain RAG Chain]
+
+  subgraph Retrieval
+    RAG --> Dense[Dense Recall: Chroma Cloud query_embeddings]
+    Dense --> Candidates[Top-N dense candidates]
+    Candidates --> BM25["Local BM25 rerank (rank_bm25)"]
+    BM25 --> Fuse["Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm"]
+  end
+
+  Dense --> Chroma[(Chroma Cloud Collection)]
+  RAG --> LLM[ChatOpenAI]
+  RAG --> LS[LangSmith tags/metadata]
+```
 
 ### Key Implementation Anchors
 
@@ -28,28 +49,7 @@ The service is designed so a client (orchestrator / frontend) can call it via JS
 
 ---
 
-## 2. Request/Response Lifecycle (End-to-End)
 
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant F as FastAPI (/mcp)
-  participant M as MCP Tool (rag_query_with_chunks)
-  participant R as Retriever (Hybrid)
-  participant V as Chroma Cloud
-  participant L as LLM (ChatOpenAI)
-
-  C->>F: POST /mcp (JSON-RPC tools/call: rag_query_with_chunks)
-  F->>M: dispatch tool call
-  M->>R: retrieve_ranked_chunks(question, k=chunk_k)
-  R->>V: query_embeddings (dense recall top-N)
-  V-->>R: docs + metadatas + distances
-  R->>R: BM25 rerank over top-N + hybrid fuse
-  R-->>M: ranked chunks + scores
-  M->>L: RAG prompt with formatted top-k context
-  L-->>M: answer text
-  M-->>C: { answer, chunks, used_chunk_ids, retrieval, metadata }
-```
 
 ### Why This Design Works Well
 
@@ -151,25 +151,26 @@ LangSmith tags (e.g., app version, MCP name, request/session IDs) and retrieval 
 
 ---
 
-## 8. High-Level Component Diagram
+
+## 8. Request/Response Lifecycle (End-to-End)
 
 ```mermaid
-flowchart LR
-  Client[Client: Orchestrator / Frontend] -->|JSON-RPC tools/call| API[FastAPI App]
-  API -->|mounted /mcp| MCP[FastMCP Streamable HTTP App]
+sequenceDiagram
+  participant C as Client
+  participant F as FastAPI (/mcp)
+  participant M as MCP Tool (rag_query_with_chunks)
+  participant R as Retriever (Hybrid)
+  participant V as Chroma Cloud
+  participant L as LLM (ChatOpenAI)
 
-  MCP --> Tool[Tool: rag_query_with_chunks]
-  Tool --> RAG[LangChain RAG Chain]
-
-  subgraph Retrieval
-    RAG --> Dense[Dense Recall: Chroma Cloud query_embeddings]
-    Dense --> Candidates[Top-N dense candidates]
-    Candidates --> BM25["Local BM25 rerank (rank_bm25)"]
-    BM25 --> Fuse["Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm"]
-  end
-
-  Dense --> Chroma[(Chroma Cloud Collection)]
-  RAG --> LLM[ChatOpenAI]
-  RAG --> LS[LangSmith tags/metadata]
+  C->>F: POST /mcp (JSON-RPC tools/call: rag_query_with_chunks)
+  F->>M: dispatch tool call
+  M->>R: retrieve_ranked_chunks(question, k=chunk_k)
+  R->>V: query_embeddings (dense recall top-N)
+  V-->>R: docs + metadatas + distances
+  R->>R: BM25 rerank over top-N + hybrid fuse
+  R-->>M: ranked chunks + scores
+  M->>L: RAG prompt with formatted top-k context
+  L-->>M: answer text
+  M-->>C: { answer, chunks, used_chunk_ids, retrieval, metadata }
 ```
-
