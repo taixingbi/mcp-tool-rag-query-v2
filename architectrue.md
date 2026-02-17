@@ -32,8 +32,8 @@ flowchart LR
   subgraph Retrieval
     RAG --> Dense[Dense Recall: Chroma Cloud query_embeddings]
     Dense --> Candidates[Top-N dense candidates]
-    Candidates --> BM25[Local BM25 rerank (rank_bm25)]
-    BM25 --> Fuse[Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm]
+    Candidates --> BM25["Local BM25 rerank (rank_bm25)"]
+    BM25 --> Fuse["Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm"]
   end
 
   Dense --> Chroma[(Chroma Cloud Collection)]
