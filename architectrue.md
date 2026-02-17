@@ -19,27 +19,6 @@ The service is designed so a client (orchestrator / frontend) can call it via JS
 
 ---
 
-## 2. High-Level Component Diagram
-
-```mermaid
-flowchart LR
-  Client[Client: Orchestrator / Frontend] -->|JSON-RPC tools/call| API[FastAPI App]
-  API -->|mounted /mcp| MCP[FastMCP Streamable HTTP App]
-
-  MCP --> Tool[Tool: rag_query_with_chunks]
-  Tool --> RAG[LangChain RAG Chain]
-
-  subgraph Retrieval
-    RAG --> Dense[Dense Recall: Chroma Cloud query_embeddings]
-    Dense --> Candidates[Top-N dense candidates]
-    Candidates --> BM25["Local BM25 rerank (rank_bm25)"]
-    BM25 --> Fuse["Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm"]
-  end
-
-  Dense --> Chroma[(Chroma Cloud Collection)]
-  RAG --> LLM[ChatOpenAI]
-  RAG --> LS[LangSmith tags/metadata]
-```
 
 ### Key Implementation Anchors
 
@@ -49,7 +28,7 @@ flowchart LR
 
 ---
 
-## 3. Request/Response Lifecycle (End-to-End)
+## 2. Request/Response Lifecycle (End-to-End)
 
 ```mermaid
 sequenceDiagram
@@ -80,7 +59,7 @@ sequenceDiagram
 
 ---
 
-## 4. Retrieval Architecture (The Core)
+## 3. Retrieval Architecture (The Core)
 
 ### Dense Recall (Chroma Cloud)
 
@@ -102,7 +81,7 @@ This is a startup-friendly hybrid: recall comes from dense search, precision fro
 
 ---
 
-## 5. Generation Architecture (LLM Chain)
+## 4. Generation Architecture (LLM Chain)
 
 The LangChain chain structure:
 
@@ -118,7 +97,7 @@ context = retriever(where) | format_docs
 
 ---
 
-## 6. Observability Hooks (LangSmith)
+## 5. Observability Hooks (LangSmith)
 
 - **Tags:** `app_version`, `mcp_name`, plus `request_id`, `session_id` when provided
 - **Run config:** `run_name=settings.mcp_name` so traces group by service/tool
@@ -126,7 +105,7 @@ context = retriever(where) | format_docs
 
 ---
 
-## 7. Public API Surface
+## 6. Public API Surface
 
 ### Health
 
@@ -146,7 +125,7 @@ context = retriever(where) | format_docs
 
 ---
 
-## 8. README-Ready Architecture Summary
+## 7. README-Ready Architecture Summary
 
 Copy-paste this section as-is for README or design docs:
 
@@ -172,4 +151,25 @@ LangSmith tags (e.g., app version, MCP name, request/session IDs) and retrieval 
 
 ---
 
-*Everything above matches the current implementation.*
+## 8. High-Level Component Diagram
+
+```mermaid
+flowchart LR
+  Client[Client: Orchestrator / Frontend] -->|JSON-RPC tools/call| API[FastAPI App]
+  API -->|mounted /mcp| MCP[FastMCP Streamable HTTP App]
+
+  MCP --> Tool[Tool: rag_query_with_chunks]
+  Tool --> RAG[LangChain RAG Chain]
+
+  subgraph Retrieval
+    RAG --> Dense[Dense Recall: Chroma Cloud query_embeddings]
+    Dense --> Candidates[Top-N dense candidates]
+    Candidates --> BM25["Local BM25 rerank (rank_bm25)"]
+    BM25 --> Fuse["Hybrid fuse: alpha*dense_norm + (1-alpha)*bm25_norm"]
+  end
+
+  Dense --> Chroma[(Chroma Cloud Collection)]
+  RAG --> LLM[ChatOpenAI]
+  RAG --> LS[LangSmith tags/metadata]
+```
+
